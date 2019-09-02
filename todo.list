@@ -1,0 +1,15 @@
+language:
+golang
+
+book:
+tcp/ip 1th
+unix network programming
+unix high level envir programming
+redis design and archieve
+linux high performence server programming
+
+opensouce tools(skills):
+docker
+rabbitMq
+redis
+git

@@ -7,9 +7,11 @@ import (
 )
 
 type Config struct {
-	ApiPort         int `json:"apiPort"`
-	ApiReadTimeout  int `json:"apiReadTimeout"`
-	ApiWriteTimeout int `json:"apiWriteTimeout"`
+	ApiPort         int      `json:"apiPort"`
+	ApiReadTimeout  int      `json:"apiReadTimeout"`
+	ApiWriteTimeout int      `json:"apiWriteTimeout"`
+	EtcdEndPotints  []string `json:"etcdEndPoints"`
+	EtcdDialTimeout int      `json:"etcdDialTimeout"`
 }
 
 var (
@@ -17,6 +19,7 @@ var (
 	G_config *Config
 )
 
+//初始化配置函数
 func InitConfig(filename string) (err error) {
 	var (
 		content []byte

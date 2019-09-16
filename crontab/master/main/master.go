@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"runtime"
+	"time"
 )
 
 var (
@@ -34,11 +35,18 @@ func main() {
 	initEnv()
 	//加载配置
 	if err = master.InitConfig(confFile); err != nil {
-		return
+		goto ERR
+	}
+	//任务管理器(JobMgr)
+	if err = master.InitJobMgr(); err != nil {
+		goto ERR
 	}
 	//启动Api Http服务
 	if err = master.InitApiServer(); err != nil {
 		goto ERR
+	}
+	for {
+		time.Sleep(1 * time.Second)
 	}
 ERR:
 	fmt.Println(err)

@@ -9,14 +9,14 @@ import (
 
 func main() {
 	var (
-		config clientv3.Config
-		client *clientv3.Client
-		err error
-		kv clientv3.KV
-		getResp  *clientv3.GetResponse
+		config  clientv3.Config
+		client  *clientv3.Client
+		err     error
+		kv      clientv3.KV
+		getResp *clientv3.GetResponse
 	)
 	config = clientv3.Config{
-		Endpoints:[]string{"116.62.45.108:2379"},
+		Endpoints:   []string{"116.62.45.108:2379"},
 		DialTimeout: 5 * time.Second,
 	}
 
@@ -27,13 +27,13 @@ func main() {
 	//use to storage kv
 	kv = clientv3.NewKV(client)
 
-	if getResp, err = kv.Get(context.TODO(),"/cron/jobs/job2");err != nil {
+	if getResp, err = kv.Get(context.TODO(), "/cron/jobs", clientv3.WithPrefix()); err != nil {
 		fmt.Println(err)
 		return
-	}else if getResp.Kvs != nil{
+	} else if getResp.Kvs != nil {
 		fmt.Println(getResp.Header.Revision)
 		fmt.Println(string(getResp.Kvs[0].Value))
-	}else {
+	} else {
 		fmt.Println("get nil")
 	}
 

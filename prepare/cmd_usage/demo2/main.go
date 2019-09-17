@@ -7,14 +7,14 @@ import (
 
 func main() {
 	var (
-		cmd *exec.Cmd
+		cmd    *exec.Cmd
 		output []byte
-		err error
+		err    error
 	)
 	//Generate Cmd(pipe)
-	cmd = exec.Command("/bin/bash","-c","sleep 5;ls -l")
+	cmd = exec.Command("/bin/bash", "-c", "sleep 5;ls -l")
 
-	if output, err = cmd.CombinedOutput(); err!=nil {
+	if output, err = cmd.CombinedOutput(); err != nil {
 		fmt.Println(err)
 		return
 	}

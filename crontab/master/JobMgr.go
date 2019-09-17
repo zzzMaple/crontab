@@ -58,7 +58,7 @@ func (jobMgr *JobMgr) JobSave(job *common.Job) (oldJob *common.Job, err error) {
 		putResp  *clientv3.PutResponse
 	)
 	//etcd保存key
-	jobKey = "/cron/jobs/" + job.Name
+	jobKey = common.JobSaveDir + job.Name
 	//生成任务信息Json
 	if jobValue, err = json.Marshal(job); err != nil {
 		goto ERR
@@ -71,8 +71,7 @@ func (jobMgr *JobMgr) JobSave(job *common.Job) (oldJob *common.Job, err error) {
 	if putResp.PrevKv != nil {
 		//对旧值进行反序列化
 		if err = json.Unmarshal(putResp.PrevKv.Value, &oldJob); err != nil {
-			err = nil //忽略旧值
-			return
+			err = nil //忽略旧值S
 		}
 	}
 ERR:
@@ -86,7 +85,7 @@ func (jobMgr *JobMgr) JobDelete(jobName string) (oldJob *common.Job, err error) 
 		delResp *clientv3.DeleteResponse
 	)
 	//etcd中保存任务的Key
-	jobKey = "/cron/jobs/" + jobName
+	jobKey = common.JobSaveDir + jobName
 	//从etcd中删除
 	if delResp, err = jobMgr.kv.Delete(context.TODO(), jobKey, clientv3.WithPrevKV()); err != nil {
 		goto ERR
@@ -96,8 +95,58 @@ func (jobMgr *JobMgr) JobDelete(jobName string) (oldJob *common.Job, err error) 
 		//解析旧值，返回它
 		if err = json.Unmarshal(delResp.PrevKvs[0].Value, &oldJob); err != nil {
 			err = nil //即使旧值为空也OK，故给err赋空
-			return
 		}
+	}
+ERR:
+	return
+}
+
+//JobMgr的JobList方法
+func (jobMgr *JobMgr) JobList() (jobList []*common.Job, err error) {
+	var (
+		jobDir  string //dir
+		job     *common.Job
+		getResp *clientv3.GetResponse
+	)
+	//任务所在目录
+	jobDir = common.JobSaveDir
+	//获取目录下的所有任务信息
+	if getResp, err = jobMgr.kv.Get(context.TODO(), jobDir, clientv3.WithPrefix()); err != nil {
+		goto ERR
+	}
+	//初始化任务数组（调用者只须判断任务数组len是否为0）
+	jobList = make([]*common.Job, 0)
+	//遍历所有的任务，进行反序列化（容忍个别Job反序列化失败）
+	for _, KvPair := range getResp.Kvs {
+		if err = json.Unmarshal(KvPair.Value, &job); err != nil {
+			continue
+		}
+		jobList = append(jobList, job)
+		job = new(common.Job)
+	}
+ERR:
+	return
+}
+
+//JobMgr的JobKill方法
+func (jobMgr *JobMgr) JobKill(name string) (err error) {
+	//更新Key=/cron/killer/taskName
+	var (
+		killerKey string
+		grantResp *clientv3.LeaseGrantResponse
+		leaseID   clientv3.LeaseID
+	)
+	//通知worker杀死对应任务
+	killerKey = common.JobKillerDir + name
+	//让worker监听到一次put方法，创建一个lease让其自动过期，我们不需要去存储这个KILL命令，所以让其自动过期
+	if grantResp, err = jobMgr.lease.Grant(context.TODO(), 1); err != nil {
+		goto ERR
+	}
+	//取租约ID
+	leaseID = grantResp.ID
+	//设置Killer标记(Put)
+	if _, err = jobMgr.kv.Put(context.TODO(), killerKey, "", clientv3.WithLease(leaseID)); err != nil {
+		goto ERR
 	}
 ERR:
 	return

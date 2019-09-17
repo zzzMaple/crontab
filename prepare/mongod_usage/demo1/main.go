@@ -35,5 +35,5 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println("id: ",res.InsertedID)
+	fmt.Println("id: ", res.InsertedID)
 }

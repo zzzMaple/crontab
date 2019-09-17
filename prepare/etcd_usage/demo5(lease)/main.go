@@ -9,17 +9,16 @@ import (
 
 func main() {
 	var (
-		config         clientv3.Config
-		client         *clientv3.Client
-		err            error
-		kv             clientv3.KV
-		lease          clientv3.Lease
-		leaseGrantResp *clientv3.LeaseGrantResponse
-		leaseId        clientv3.LeaseID
-		putResp        *clientv3.PutResponse
-		getResp        *clientv3.GetResponse
-		keepResp       *clientv3.LeaseKeepAliveResponse
-		keepRespChan  	<-chan *clientv3.LeaseKeepAliveResponse
+		config       clientv3.Config
+		client       *clientv3.Client
+		err          error
+		kv           clientv3.KV
+		lease        clientv3.Lease
+		leaseId      clientv3.LeaseID
+		putResp      *clientv3.PutResponse
+		getResp      *clientv3.GetResponse
+		keepResp     *clientv3.LeaseKeepAliveResponse
+		keepRespChan <-chan *clientv3.LeaseKeepAliveResponse
 	)
 	config = clientv3.Config{
 		Endpoints:   []string{"116.62.45.108:2379"},
@@ -39,32 +38,32 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	go func(){
-		for{
-			select{
-				case keepResp = <-keepRespChan:
-					if keepRespChan == nil {
-						fmt.Println("lease expired")
-						goto END
-					}else {
-						fmt.Println("receive an application for extension the lease ", leaseId)
-					}
+	go func() {
+		for {
+			select {
+			case keepResp = <-keepRespChan:
+				if keepRespChan == nil {
+					fmt.Println("lease expired")
+					goto END
+				} else {
+					fmt.Println("receive an application for extension the lease ", leaseId)
+				}
 
 			}
 		}
-		END:
+	END:
 	}()
 	//put a kv, link it with the lease we apply
-	if putResp, err = kv.Put(context.TODO(),"00011","hello", clientv3.WithLease(leaseId)); err != nil {
+	if putResp, err = kv.Put(context.TODO(), "00011", "hello", clientv3.WithLease(leaseId)); err != nil {
 		fmt.Println(err)
 		return
-	}else {
+	} else {
 		fmt.Println(putResp.Header.Revision)
 	}
 
 	//check if the lease expired
-	for{
-		if getResp, err = kv.Get(context.TODO(),"00011"); err != nil{
+	for {
+		if getResp, err = kv.Get(context.TODO(), "00011"); err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -75,6 +74,5 @@ func main() {
 		fmt.Println("kv still alive", getResp.Kvs)
 		time.Sleep(2 * time.Second)
 	}
-
 
 }

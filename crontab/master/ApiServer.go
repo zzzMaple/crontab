@@ -47,13 +47,17 @@ func handleJobSave(w http.ResponseWriter, r *http.Request) {
 	}
 	//5.返回正常应答{{"error": 0, "msg": "success", "data": {...}}}
 	if bytes, err = common.BuildResponse(0, "success", oldJob); err == nil {
-		w.Write(bytes)
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
 	}
 	return
 ERR:
 	//6.返回异常应答
 	if bytes, err = common.BuildResponse(-1, "err", nil); err == nil {
-		w.Write(bytes)
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
 	}
 }
 
@@ -77,31 +81,107 @@ func handleJobDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	//4.正常应答(BuildResponse)
 	if bytes, err = common.BuildResponse(0, "success", oldJob); err == nil {
-		w.Write(bytes)
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
 	}
 	return
 	//错误应答
 ERR:
 	if bytes, err = common.BuildResponse(-1, "err", nil); err == nil {
-		w.Write(bytes)
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
 	}
+}
+
+//获取任务列表接口
+func handleJobList(w http.ResponseWriter, r *http.Request) {
+	var (
+		err     error
+		jobList []*common.Job
+		bytes   []byte
+	)
+	//jobDir = common.JobSaveDir
+	//获取任务
+	if jobList, err = G_jobMgr.JobList(); err != nil {
+		goto ERR
+	}
+	//正常应答
+	if bytes, err = common.BuildResponse(0, "success", jobList); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+	return
+ERR:
+	//错误应答
+	if bytes, err = common.BuildResponse(-1, "err", nil); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+}
+
+//强制杀死某个任务
+func handleJobKill(w http.ResponseWriter, r *http.Request) {
+	var (
+		err   error
+		name  string
+		bytes []byte
+	)
+	//解析POST表单
+	if err = r.ParseForm(); err != nil {
+		goto ERR
+	}
+	//设置要kill的任务名
+	name = r.Form.Get("name")
+	//kill任务
+	if err = G_jobMgr.JobKill(name); err != nil {
+		goto ERR
+	}
+	//正常应答
+	if bytes, err = common.BuildResponse(0, "success", name); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+	return
+	//错误应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, "err", nil); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+
 }
 
 //初始化服务
 func InitApiServer() (err error) {
 	var (
-		mux        *http.ServeMux
-		listener   net.Listener
-		httpServer *http.Server
+		mux           *http.ServeMux
+		listener      net.Listener
+		httpServer    *http.Server
+		staticDir     http.Dir //静态文件目录
+		staticHandler http.Handler
 	)
 	//配置路由
 	mux = http.NewServeMux()
 	mux.HandleFunc("/job/save", handleJobSave)
 	mux.HandleFunc("/job/del", handleJobDelete)
+	mux.HandleFunc("/job/list", handleJobList)
+	mux.HandleFunc("/job/kill", handleJobKill)
 	//启动TCP监听
 	if listener, err = net.Listen("tcp", ":"+strconv.Itoa(G_config.ApiPort)); err != nil {
 		return
 	}
+	// /index.html
+
+	//静态文件目录
+	staticDir = http.Dir(G_config.WebRoot)
+	staticHandler = http.FileServer(staticDir)
+	mux.Handle("/", http.StripPrefix("/", staticHandler))
 	//创建Http服务
 	httpServer = &http.Server{
 		ReadTimeout:  time.Duration(G_config.ApiReadTimeout) * time.Millisecond,

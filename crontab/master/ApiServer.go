@@ -157,6 +157,77 @@ ERR:
 
 }
 
+//查询日志
+func handleJobLog(w http.ResponseWriter, r *http.Request) {
+	var (
+		err       error
+		name      string //日志名称
+		skipParam string
+		limitPara string
+		skip      int //从第N条开始
+		limit     int //返回日志数目
+		logArr    []*common.JobLog
+		bytes     []byte
+	)
+	if err = r.ParseForm(); err != nil {
+		goto ERR
+	}
+	name = r.Form.Get("name")
+	skipParam = r.Form.Get("skip")
+	limitPara = r.Form.Get("limit")
+	if skip, err = strconv.Atoi(skipParam); err != nil {
+		skip = 0
+	}
+	if limit, err = strconv.Atoi(limitPara); err != nil {
+		limit = 20
+	}
+	if logArr, err = G_logMgr.ListLog(name, skip, limit); err != nil {
+		goto ERR
+	}
+	//正常应答
+	if bytes, err = common.BuildResponse(0, "success", logArr); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+	return
+	//错误应答
+ERR:
+	if bytes, err = common.BuildResponse(-1, "err", nil); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+}
+
+//获取健康节点IP
+func handleWorkerList(w http.ResponseWriter, r *http.Request) {
+	var (
+		workerIP []string
+		err      error
+		bytes    []byte
+	)
+
+	if workerIP, err = G_workerMgr.workerList(); err != nil {
+		goto ERR
+	}
+
+	//正常应答
+	if bytes, err = common.BuildResponse(0, "success", workerIP); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+	return
+ERR:
+	//错误应答
+	if bytes, err = common.BuildResponse(-1, "err", nil); err == nil {
+		if _, err = w.Write(bytes); err != nil {
+			goto ERR
+		}
+	}
+}
+
 //初始化服务
 func InitApiServer() (err error) {
 	var (
@@ -172,6 +243,8 @@ func InitApiServer() (err error) {
 	mux.HandleFunc("/job/del", handleJobDelete)
 	mux.HandleFunc("/job/list", handleJobList)
 	mux.HandleFunc("/job/kill", handleJobKill)
+	mux.HandleFunc("/job/log", handleJobLog)
+	mux.HandleFunc("/worker/list", handleWorkerList)
 	//启动TCP监听
 	if listener, err = net.Listen("tcp", ":"+strconv.Itoa(G_config.ApiPort)); err != nil {
 		return

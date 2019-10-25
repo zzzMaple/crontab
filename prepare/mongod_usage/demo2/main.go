@@ -17,10 +17,10 @@ type TimePoint struct {
 
 //a piece of log
 type LogRecord struct {
-	JobName   string `bson:"jobName"`
-	Command   string `bson:"command"`
-	Err       string `bson:"err"`
-	Content   string `bson:"content"`
+	JobName   string    `bson:"jobName"`
+	Command   string    `bson:"command"`
+	Err       string    `bson:"err"`
+	Content   string    `bson:"content"`
 	TimePoint TimePoint `bson:"timePoint"`
 }
 
@@ -33,14 +33,14 @@ func main() {
 		res        *mongo.InsertOneResult
 		err        error
 		record     *LogRecord
-		docId primitive.ObjectID
+		docId      primitive.ObjectID
 	)
 	//connect with mongodb host
 	if client, err = mongo.NewClient(options.Client().ApplyURI("mongodb://116.62.45.108:27017")); err != nil {
 		fmt.Println(err)
 		return
 	}
-	ctx, cancelFunc = context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancelFunc = context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancelFunc()
 	if err = client.Connect(ctx); err != nil {
 		fmt.Println(err)

@@ -26,7 +26,7 @@ func main() {
 	}
 	//use to storage key-value
 	kv = clientv3.NewKV(client)
-	if putResp, err = kv.Put(context.TODO(), "1112", "hello1", clientv3.WithPrevKV()); err != nil {
+	if putResp, err = kv.Put(context.TODO(), "/cron/workers/192.168.1.1", "zzz", clientv3.WithPrevKV()); err != nil {
 		fmt.Println(err)
 	} else {
 		fmt.Println("Revision", putResp.Header.Revision)

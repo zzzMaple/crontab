@@ -1,7 +1,6 @@
 package worker
 
 import (
-	"context"
 	"crontab/crontab/common"
 	"os/exec"
 	"time"
@@ -37,16 +36,18 @@ func (executor Executor) ExecuteJob(info *common.JobExecuteInfo) {
 		result.StartTime = time.Now()
 		//上锁
 		err = jobLock.TryLock()
+		//随机睡眠，确保锁的分布均匀
+		time.Sleep(time.Duration(1000 * time.Millisecond))
 		//释放锁
 		defer jobLock.UnkLock()
 		if err != nil { //上锁失败
-			result.Err = err
+			result.Err = common.ERR_LOCK_ALREADY_REQUIRED
 			result.EndTime = time.Now()
 		} else {
 			//上锁成功后，重置任务启动时间
 			result.StartTime = time.Now()
 			//执行shell命令
-			cmd = exec.CommandContext(context.TODO(), "/bin/bash", "-c", info.Job.Command)
+			cmd = exec.CommandContext(info.CancelCtx, "c:\\cygwin64\\bin\\bash.exe", "-c", info.Job.Command)
 			//执行并捕获输出
 			output, err = cmd.CombinedOutput()
 			//最终目标是在任务执行后，把执行的结果返回给Scheduler，Scheduler会从executingtable中删除掉执行记录

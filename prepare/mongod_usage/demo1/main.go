@@ -31,7 +31,7 @@ func main() {
 	}
 	//use collection
 	collection = client.Database("my_db").Collection("my_collection")
-	if res, err = collection.InsertOne(context.Background(), bson.M{"hello": "world"}); err != nil {
+	if res, err = collection.InsertOne(context.Background(), bson.M{"hello": "world11"}); err != nil {
 		fmt.Println(err)
 		return
 	}

@@ -63,7 +63,7 @@ func (jobLock JobLock) TryLock() (err error) {
 	//4.创建事务txn
 	txn = jobLock.kv.Txn(context.TODO())
 	//锁路径
-	lockKey = common.JObLockDir + jobLock.jobName
+	lockKey = common.JobLockDir + jobLock.jobName
 	//5.事务抢锁
 	txn.If(clientv3.Compare(clientv3.CreateRevision(lockKey), "=", 0)).
 		Then(clientv3.OpPut(lockKey, "", clientv3.WithLease(leaseId))).
@@ -89,6 +89,7 @@ FAIL:
 	if _, err = jobLock.lease.Revoke(context.TODO(), leaseId); err != nil {
 		log.Fatal(err)
 	}
+	err = common.ERR_LOCK_ALREADY_REQUIRED
 	return
 }
 

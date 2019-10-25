@@ -10,7 +10,7 @@ import (
 type Scheduler struct {
 	jobEventChan      chan *common.JobEvent             //etcd任务事件队列
 	jobPlanTable      map[string]*common.JobPlan        //任务调度表
-	jobExecutingTable map[string]*common.JobExecuteInfo //任务执行表
+	jobExecutingTable map[string]*common.JobExecuteInfo //正在执行的任务表
 	jobResultChan     chan *common.JobExecuteResult     //任务结果chan
 }
 
@@ -22,9 +22,11 @@ var (
 //处理任务事件
 func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) {
 	var (
-		jobPlan    *common.JobPlan
-		jobExisted bool
-		err        error
+		jobExecuteInfo *common.JobExecuteInfo
+		jobExecuting   bool
+		jobPlan        *common.JobPlan
+		jobExisted     bool
+		err            error
 	)
 	switch jobEvent.EventType {
 	case common.JoBEventSave:
@@ -36,24 +38,54 @@ func (scheduler *Scheduler) handleJobEvent(jobEvent *common.JobEvent) {
 		if jobPlan, jobExisted = scheduler.jobPlanTable[jobEvent.Job.Name]; jobExisted {
 			delete(scheduler.jobPlanTable, jobEvent.Job.Name)
 		}
+	case common.JobEventKill:
+		//取消command执行
+		if jobExecuteInfo, jobExecuting = scheduler.jobExecutingTable[jobEvent.Job.Name]; jobExecuting {
+			jobExecuteInfo.CancelFunc()
+		} //触发command中断杀死shell子进程，退出任务
+
 	}
 }
 
 //处理任务结果
 func (scheduler *Scheduler) handleJobResult(result *common.JobExecuteResult) {
+	var (
+		jobLog *common.JobLog
+	)
 	//删除执行状态
 	delete(scheduler.jobExecutingTable, result.JobExecuteInfo.Job.Name)
-	fmt.Println("任务执行完成")
+
+	//生成执行日志
+	if result.Err != common.ERR_LOCK_ALREADY_REQUIRED {
+		jobLog = &common.JobLog{
+			JobName:      result.JobExecuteInfo.Job.Name,
+			Command:      result.JobExecuteInfo.Job.Command,
+			Output:       string(result.Output),
+			PlanTime:     result.JobExecuteInfo.PlanTime.Unix(), //unixnano，单位纳秒(nano)
+			ScheduleTime: result.JobExecuteInfo.RealTime.Unix(),
+			StartTime:    result.StartTime.Unix(),
+			EndTime:      result.EndTime.Unix(),
+		}
+		if result.Err != nil {
+			jobLog.Err = result.Err.Error()
+		} else {
+			jobLog.Err = ""
+		}
+		G_logSink.Append(jobLog)
+		fmt.Println("taskName:", result.JobExecuteInfo.Job.Name, "任务执行完成时间：", result.EndTime, "err:", result.Err)
+	} else {
+		fmt.Println("taskName:", result.JobExecuteInfo.Job.Name, "err:", result.Err)
+	}
 }
 
-//尝试执行任务(调度和执行是分开的)
+//尝试执行任务(调度和执行是分开的)s
 func (scheduler *Scheduler) TryStartJob(jobPlan *common.JobPlan) {
 	// 调度 和 执行 是2件事情
 	var (
 		jobExecuteInfo *common.JobExecuteInfo
 		jobExecuting   bool
 	)
-	// 执行的任务可能运行很久, 1分钟会调度60次，但是只能执行1次, 防止并发！
+	// 执行的任务可能运行很久, 1分钟会调度60次，但是只能执行1次, 防止并发
 	// 如果任务正在执行，跳过本次调度
 	if jobExecuteInfo, jobExecuting = scheduler.jobExecutingTable[jobPlan.Job.Name]; jobExecuting {
 		fmt.Println("尚未退出,跳过执行:", jobPlan.Job.Name)

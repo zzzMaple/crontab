@@ -27,12 +27,16 @@ func main() {
 	//use to storage kv
 	kv = clientv3.NewKV(client)
 
-	if getResp, err = kv.Get(context.TODO(), "/cron/jobs", clientv3.WithPrefix()); err != nil {
+	if getResp, err = kv.Get(context.TODO(), "/cron", clientv3.WithPrefix()); err != nil {
 		fmt.Println(err)
 		return
 	} else if getResp.Kvs != nil {
 		fmt.Println(getResp.Header.Revision)
-		fmt.Println(string(getResp.Kvs[0].Value))
+		for _, value := range getResp.Kvs {
+			fmt.Println(string(value.Key))
+			fmt.Println(string(value.Value))
+		}
+
 	} else {
 		fmt.Println("get nil")
 	}
